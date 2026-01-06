@@ -131,6 +131,7 @@ export class AttendancesService {
     }
 
     // 检查是否有未完成的工作班次
+    // 如果有未完成的班次，必须先完成下班打卡才能开始新的班次（确保班次完整性）
     const unfinishedSession = await this.workSessionRepository.findOne({
       where: {
         userId,
@@ -305,7 +306,8 @@ export class AttendancesService {
       };
     }
 
-    // 没有未完成的班次，查找最后一次打卡记录
+    // 没有未完成的班次，可以上班打卡
+    // 查找最后一次打卡记录用于显示
     const lastAttendance = await this.attendanceRepository.findOne({
       where: {
         userId,
@@ -315,18 +317,9 @@ export class AttendancesService {
       },
     });
 
-    // 检查最后一次打卡是否是今天
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const isToday =
-      lastAttendance &&
-      new Date(lastAttendance.clockTime) >= today &&
-      lastAttendance.type === AttendanceType.CLOCK_OUT;
-
-    // 如果最后一次打卡是今天的下班打卡，说明今天已经完成打卡，不能再打卡
-    // 否则可以上班打卡
+    // 允许一天内多个班次：只要没有未完成的班次，就可以进行新的上班打卡
     return {
-      canClockIn: !isToday,
+      canClockIn: true,
       canClockOut: false,
       currentSession: null,
       lastClockTime: lastAttendance?.clockTime || null,

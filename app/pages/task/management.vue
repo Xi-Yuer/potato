@@ -10,16 +10,16 @@
 
         <view v-else class="module-list">
           <uni-collapse
-            v-model="expandedModuleIds"
+            v-model="expandedModuleId"
             @change="handleCollapseChange"
+            accordion
           >
             <uni-collapse-item
               v-for="module in modules"
               :key="module.id"
-              :name="module.id"
+              :name="String(module.id)"
               :show-arrow="false"
-              :title-border="'none'"
-              :border="'none'"
+              :border="false"
             >
               <!-- 自定义标题 -->
               <template #title>
@@ -27,7 +27,7 @@
                   <view class="module-info">
                     <uni-icons
                       :type="
-                        expandedModuleIds.includes(module.id)
+                        expandedModuleId === String(module.id)
                           ? 'up'
                           : 'arrowright'
                       "
@@ -143,7 +143,7 @@ import { ref, onMounted } from "vue";
 import { taskApi } from "../../utils/api.js";
 
 const modules = ref([]);
-const expandedModuleIds = ref([]);
+const expandedModuleId = ref(null); // 手风琴模式：当前展开的模块ID（字符串类型）
 const moduleTasks = ref({});
 
 // 获取任务模块列表
@@ -197,12 +197,13 @@ const getTimeRange = (module) => {
   return "";
 };
 
-// 处理折叠面板展开/收起事件
+// 处理折叠面板展开/收起事件（手风琴模式）
 const handleCollapseChange = async (value) => {
-  // value 是当前展开的面板 ID 数组
-  expandedModuleIds.value = value;
-  // 遍历展开的面板，如果还没有加载任务，则加载任务
-  for (const moduleId of value) {
+  // accordion 模式下，value 是当前展开的面板 ID（字符串类型）
+  expandedModuleId.value = value;
+  // 如果展开了一个模块，且还没有加载任务，则加载任务
+  if (value) {
+    const moduleId = Number(value); // 转换为数字用于查询任务
     if (!moduleTasks.value[moduleId]) {
       await getModuleTasks(moduleId);
     }
@@ -236,10 +237,9 @@ const handleDeleteModule = (module) => {
             title: "删除成功",
             icon: "success",
           });
-          // 从展开列表中移除
-          const index = expandedModuleIds.value.indexOf(module.id);
-          if (index > -1) {
-            expandedModuleIds.value.splice(index, 1);
+          // 如果删除的是当前展开的模块，清空展开状态
+          if (expandedModuleId.value === String(module.id)) {
+            expandedModuleId.value = null;
           }
           // 删除该模块的任务缓存
           delete moduleTasks.value[module.id];

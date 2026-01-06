@@ -217,7 +217,7 @@ const handleContact = () => {
 .login-btn {
   width: 100%;
   height: 88rpx;
-  background-color: #6366f1;
+  background-color: #1f2937;
   border-radius: 8rpx;
   color: #ffffff;
   font-size: 30rpx;
@@ -235,7 +235,7 @@ const handleContact = () => {
 }
 
 .login-btn:active {
-  background-color: #4f46e5;
+  background-color: #1f2937;
 }
 
 .footer-link {

@@ -94,7 +94,7 @@ const handleDateChange = (e) => {
 
 .today-completion-text {
   font-size: 14px;
-  color: #1890ff;
+  color: #1a1a1a;
   font-weight: 500;
   line-height: 1.4;
   white-space: nowrap;

@@ -16,7 +16,7 @@
     {
       "path": "pages/scheduling/scheduling",
       "style": {
-        "navigationBarTitleText": "排班"
+        "navigationBarTitleText": "打卡统计"
       }
     },
     {
@@ -78,7 +78,7 @@
       },
       {
         "pagePath": "pages/scheduling/scheduling",
-        "text": "排班",
+        "text": "打卡统计",
         "iconPath": "static/tabBar/leftfont-32.png",
         "selectedIconPath": "static/tabBar/leftfont-32-s.png"
       },
