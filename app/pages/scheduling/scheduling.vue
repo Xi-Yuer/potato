@@ -68,62 +68,57 @@
 
     <!-- 详细记录列表 -->
     <view class="details-section">
-      <view
-        v-for="(group, index) in groupedRecords"
-        :key="index"
-        class="date-group"
-        :data-date="group.date"
-      >
-        <view class="date-header" @click="toggleDateGroup(group.date)">
-          <text class="date-title">{{ formatGroupDate(group.date) }}</text>
-          <uni-icons
-            :type="group.expanded ? 'arrowup' : 'down'"
-            size="16"
-            color="#8c8c8c"
-          ></uni-icons>
-        </view>
-        <view v-if="group.expanded" class="records-list">
-          <view
-            v-for="(record, recordIndex) in group.records"
-            :key="recordIndex"
-            class="record-item"
-            :data-date="group.date"
-          >
-            <!-- 管理员视图显示员工姓名 -->
-            <view v-if="isAdmin" class="employee-name">
-              {{ record.userName }}
-            </view>
-            <!-- 班次列表 -->
-            <view class="sessions-list">
-              <view
-                v-for="(session, sessionIndex) in record.sessions"
-                :key="sessionIndex"
-                class="session-item"
-              >
-                <view class="session-time">
-                  <text class="time-text">{{
-                    formatTimeOnly(session.startTime)
-                  }}</text>
-                  <text class="time-separator">-</text>
-                  <text class="time-text">{{
-                    formatTimeOnly(session.endTime)
+      <uni-collapse>
+        <uni-collapse-item
+          v-for="(group, index) in groupedRecords"
+          :key="index"
+          :title="formatGroupDate(group.date)"
+          :data-date="group.date"
+          :border="false"
+        >
+          <view class="records-list">
+            <view
+              v-for="(record, recordIndex) in group.records"
+              :key="recordIndex"
+              class="record-item"
+              :data-date="group.date"
+            >
+              <!-- 管理员视图显示员工姓名 -->
+              <view v-if="isAdmin" class="employee-name">
+                {{ record.userName }}
+              </view>
+              <!-- 班次列表 -->
+              <view class="sessions-list">
+                <view
+                  v-for="(session, sessionIndex) in record.sessions"
+                  :key="sessionIndex"
+                  class="session-item"
+                >
+                  <view class="session-time">
+                    <text class="time-text">{{
+                      formatTimeOnly(session.startTime)
+                    }}</text>
+                    <text class="time-separator">-</text>
+                    <text class="time-text">{{
+                      formatTimeOnly(session.endTime)
+                    }}</text>
+                  </view>
+                  <text class="session-duration">{{
+                    formatDuration(session.duration)
                   }}</text>
                 </view>
-                <text class="session-duration">{{
-                  formatDuration(session.duration)
+              </view>
+              <!-- 当日总时长 -->
+              <view class="daily-total">
+                <text class="total-label">当日总计：</text>
+                <text class="total-value">{{
+                  formatDuration(record.totalDuration)
                 }}</text>
               </view>
             </view>
-            <!-- 当日总时长 -->
-            <view class="daily-total">
-              <text class="total-label">当日总计：</text>
-              <text class="total-value">{{
-                formatDuration(record.totalDuration)
-              }}</text>
-            </view>
           </view>
-        </view>
-      </view>
+        </uni-collapse-item>
+      </uni-collapse>
 
       <!-- 空状态 -->
       <view
@@ -133,6 +128,33 @@
         <text class="empty-text">暂无打卡记录</text>
       </view>
     </view>
+
+    <!-- 员工工作时长统计（仅管理员可见） -->
+    <view
+      v-if="isAdmin && employeeStats.length > 0"
+      class="employee-stats-section"
+    >
+      <uni-collapse>
+        <uni-collapse-item
+          :title="`${displayYearMonth}员工工作时长统计`"
+          :open="false"
+          :border="false"
+        >
+          <view class="employee-stats-list">
+            <view
+              v-for="(employee, index) in employeeStats"
+              :key="employee.userId"
+              class="employee-stat-item"
+            >
+              <text class="employee-name-text">{{ employee.userName }}</text>
+              <text class="employee-duration-text">{{
+                formatDuration(employee.totalMinutes)
+              }}</text>
+            </view>
+          </view>
+        </uni-collapse-item>
+      </uni-collapse>
+    </view>
   </view>
 </template>
 
@@ -140,12 +162,7 @@
 import { ref, computed, onMounted } from "vue";
 import { attendanceApi, userApi } from "@/utils/api";
 import { storage } from "@/utils/storage";
-import {
-  formatTimeOnly,
-  formatDuration,
-  getCalendarDays,
-  formatDate,
-} from "@/utils/date";
+import { formatTimeOnly, formatDuration, getCalendarDays } from "@/utils/date";
 
 // 响应式数据
 const userInfo = ref(null);
@@ -155,7 +172,6 @@ const selectedMonth = ref(new Date().getMonth() + 1);
 const attendanceRecords = ref([]);
 const isLoading = ref(false);
 const selectedDate = ref(null);
-const expandedDates = ref(new Set());
 
 // 周几标签
 const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
@@ -241,6 +257,31 @@ const totalWorkHours = computed(() => {
   return formatDuration(totalMinutes);
 });
 
+// 计算属性：员工工作时长统计（仅管理员）
+const employeeStats = computed(() => {
+  if (!isAdmin.value) return [];
+
+  const statsMap = new Map();
+  attendanceRecords.value.forEach((record) => {
+    const userId = record.userId;
+    const userName = record.userName;
+
+    if (!statsMap.has(userId)) {
+      statsMap.set(userId, {
+        userId,
+        userName,
+        totalMinutes: 0,
+      });
+    }
+
+    statsMap.get(userId).totalMinutes += record.totalDuration || 0;
+  });
+
+  return Array.from(statsMap.values()).sort(
+    (a, b) => b.totalMinutes - a.totalMinutes
+  );
+});
+
 // 计算属性：按日期分组的记录（管理员视图）
 const groupedRecords = computed(() => {
   if (isAdmin.value) {
@@ -251,7 +292,6 @@ const groupedRecords = computed(() => {
         groups.set(record.date, {
           date: record.date,
           records: [],
-          expanded: expandedDates.value.has(record.date),
         });
       }
       groups.get(record.date).records.push(record);
@@ -264,7 +304,6 @@ const groupedRecords = computed(() => {
     return attendanceRecords.value.map((record) => ({
       date: record.date,
       records: [record],
-      expanded: expandedDates.value.has(record.date),
     }));
   }
 });
@@ -327,7 +366,6 @@ const handleMonthChange = (e) => {
   const [year, month] = value.split("-").map(Number);
   selectedYear.value = year;
   selectedMonth.value = month;
-  expandedDates.value.clear();
   selectedDate.value = null;
   loadAttendanceRecords();
 };
@@ -336,10 +374,6 @@ const handleMonthChange = (e) => {
 const handleDayClick = (day) => {
   if (!day.hasAttendance) return;
   selectedDate.value = day.date;
-  // 自动展开该日期的记录
-  if (!expandedDates.value.has(day.date)) {
-    expandedDates.value.add(day.date);
-  }
   // 滚动到该日期
   setTimeout(() => {
     uni
@@ -355,15 +389,6 @@ const handleDayClick = (day) => {
       })
       .exec();
   }, 100);
-};
-
-// 方法：切换日期组展开/收起
-const toggleDateGroup = (date) => {
-  if (expandedDates.value.has(date)) {
-    expandedDates.value.delete(date);
-  } else {
-    expandedDates.value.add(date);
-  }
 };
 
 // 方法：格式化分组日期
@@ -448,6 +473,41 @@ onMounted(async () => {
 .stat-label {
   font-size: 24rpx;
   color: #8c8c8c;
+}
+
+.employee-stats-section {
+  background-color: #ffffff50;
+  margin-top: 16rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.employee-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  padding: 24rpx 32rpx 32rpx;
+}
+
+.employee-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background-color: #ffffff;
+  border-radius: 8rpx;
+}
+
+.employee-name-text {
+  font-size: 28rpx;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.employee-duration-text {
+  font-size: 28rpx;
+  color: #1a1a1a;
+  font-weight: 600;
 }
 
 .calendar-section {
@@ -547,34 +607,12 @@ onMounted(async () => {
   border-radius: 12rpx;
 }
 
-.date-group {
-  background-color: #ffffff50;
-  border-radius: 12rpx;
-  margin-bottom: 16rpx;
-  overflow: hidden;
-}
-
-.date-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx;
-  border-bottom: 1rpx solid #f5f5f5;
-}
-
-.date-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
 .records-list {
   padding: 16rpx 24rpx 24rpx;
 }
 
 .record-item {
   padding: 16rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
 }
 
 .record-item:last-child {
@@ -626,7 +664,6 @@ onMounted(async () => {
   align-items: center;
   gap: 8rpx;
   padding-top: 8rpx;
-  border-top: 1rpx solid #f5f5f5;
   margin-top: 8rpx;
 }
 
