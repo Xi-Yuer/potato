@@ -6,6 +6,7 @@ export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
   private minioClient: MinIO.Client;
   private bucketName: string;
+  private externalBaseUrl: string | null;
 
   constructor() {
     this.minioClient = new MinIO.Client({
@@ -17,6 +18,10 @@ export class MinioService implements OnModuleInit {
     });
 
     this.bucketName = process.env.MINIO_BUCKET_NAME || 'tomato-manager';
+
+    // 外部访问URL（正式环境使用，如：https://typing.xiyuer.club）
+    // 如果未设置，则使用内部端点（测试环境）
+    this.externalBaseUrl = process.env.MINIO_EXTERNAL_URL || null;
   }
 
   async onModuleInit() {
@@ -121,6 +126,20 @@ export class MinioService implements OnModuleInit {
         objectName,
         expiry,
       );
+
+      // 如果配置了外部URL（正式环境），替换URL中的内部端点
+      if (this.externalBaseUrl) {
+        // 解析原始URL
+        const urlObj = new URL(url);
+        // 构建内部端点（如：http://minio:9000）
+        const internalBase = `${urlObj.protocol}//${urlObj.host}`;
+        // 构建外部URL，添加 /minio 路径前缀（Nginx 代理路径）
+        const externalBase = `${this.externalBaseUrl.replace(/\/$/, '')}/minio`;
+        // 替换内部端点为外部URL
+        const externalUrl = url.replace(internalBase, externalBase);
+        return externalUrl;
+      }
+
       return url;
     } catch (error) {
       this.logger.error(`获取文件URL失败: ${error.message}`, error.stack);
@@ -134,6 +153,12 @@ export class MinioService implements OnModuleInit {
    * @returns 文件URL
    */
   getPublicUrl(objectName: string): string {
+    // 如果配置了外部URL（正式环境），使用外部URL + /minio 路径前缀
+    if (this.externalBaseUrl) {
+      return `${this.externalBaseUrl.replace(/\/$/, '')}/minio/${this.bucketName}/${objectName}`;
+    }
+
+    // 测试环境使用内部端点
     const protocol = process.env.MINIO_USE_SSL === 'true' ? 'https' : 'http';
     const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
     const port = process.env.MINIO_PORT
