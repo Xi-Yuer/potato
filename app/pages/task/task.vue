@@ -260,7 +260,7 @@ const onTabClick = (e) => {
 const scrollToTab = (index) => {
   // 估算每个 tab 的宽度（可以根据实际情况调整）
   const tabWidth = 80; // 每个 tab 大约 80px
-  const screenWidth = uni.getSystemInfoSync().windowWidth || 375;
+  const screenWidth = uni.getDeviceInfo().windowWidth || 375;
   const targetScrollLeft = index * tabWidth - (screenWidth / 2 - tabWidth / 2);
   scrollLeft.value = Math.max(0, targetScrollLeft);
 };

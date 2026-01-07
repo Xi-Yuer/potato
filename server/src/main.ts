@@ -16,7 +16,7 @@ async function bootstrap() {
     path: resolve(process.cwd(), '.env'),
   });
   const logger = new Logger('Bootstrap');
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 8888;
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
