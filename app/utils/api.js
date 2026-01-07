@@ -1,7 +1,7 @@
 import { storage } from "./storage.js";
 
-// API基础地址 - 根据实际情况修改
-export const BASE_URL = "https://typing.xiyuer.club/potato";
+// export const BASE_URL = "https://typing.xiyuer.club/potato"; // 正式
+export const BASE_URL = "http://localhost:3000"; // 测试
 
 // 请求拦截器 - 添加token
 const requestInterceptor = (options) => {
