@@ -8,4 +8,3 @@ export class QueryAttendanceByDateDto {
   })
   date: string; // 日期（格式：YYYY-MM-DD）
 }
-
