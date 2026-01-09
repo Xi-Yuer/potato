@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, IsNull, FindOptionsWhere } from 'typeorm';
+import { getPreciseDistance, isPointWithinRadius } from 'geolib';
 import { Attendance, AttendanceType } from '../entities/attendance.entity';
 import { WorkSession } from '../entities/work-session.entity';
 import { ClockInDto } from './dto/clock-in.dto';
@@ -40,7 +41,7 @@ export class AttendancesService {
   ) {}
 
   /**
-   * 计算两点之间的距离（米）
+   * 计算两点之间的距离（米）- 使用 geolib 库的 Vincenty 公式，精度更高
    * @param lat1 纬度1
    * @param lon1 经度1
    * @param lat2 纬度2
@@ -53,28 +54,15 @@ export class AttendancesService {
     lat2: number,
     lon2: number,
   ): number {
-    const R = 6371000; // 地球半径（米）
-    const dLat = this.toRadians(lat2 - lat1);
-    const dLon = this.toRadians(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(lat1)) *
-        Math.cos(this.toRadians(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    // 使用 getPreciseDistance 实现 Vincenty 公式，精度更高
+    return getPreciseDistance(
+      { latitude: lat1, longitude: lon1 },
+      { latitude: lat2, longitude: lon2 },
+    ) as number;
   }
 
   /**
-   * 角度转弧度
-   */
-  private toRadians(degrees: number): number {
-    return degrees * (Math.PI / 180);
-  }
-
-  /**
-   * 验证位置是否在允许范围内
+   * 验证位置是否在允许范围内 - 使用 geolib 优化
    * @param latitude 纬度
    * @param longitude 经度
    * @returns 是否在范围内
@@ -91,6 +79,13 @@ export class AttendancesService {
     const allowedRadius =
       parseFloat(process.env.ATTENDANCE_ALLOWED_RADIUS || '') || 100; // 默认100米
 
+    const point = { latitude, longitude };
+    const center = { latitude: centerLat, longitude: centerLon };
+
+    // 使用 geolib 的 isPointWithinRadius 快速判断是否在范围内
+    const isValid = isPointWithinRadius(point, center, allowedRadius);
+
+    // 计算距离用于返回信息（无论是否在范围内都需要显示距离）
     const distance = this.calculateDistance(
       latitude,
       longitude,
@@ -98,7 +93,7 @@ export class AttendancesService {
       centerLon,
     );
 
-    if (distance > allowedRadius) {
+    if (!isValid) {
       return {
         isValid: false,
         distance: Math.round(distance),
