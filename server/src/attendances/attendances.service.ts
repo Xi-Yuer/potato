@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, IsNull, FindOptionsWhere } from 'typeorm';
 import { getPreciseDistance, isPointWithinRadius } from 'geolib';
@@ -33,12 +33,33 @@ export interface AdminDailyAttendanceRecord {
 
 @Injectable()
 export class AttendancesService {
+  private readonly logger = new Logger(AttendancesService.name);
+
   constructor(
     @InjectRepository(Attendance)
     private attendanceRepository: Repository<Attendance>,
     @InjectRepository(WorkSession)
     private workSessionRepository: Repository<WorkSession>,
   ) {}
+
+  /**
+   * 获取打卡中心位置配置
+   * @returns 中心位置和允许半径
+   */
+  private getAttendanceCenter(): {
+    centerLat: number;
+    centerLon: number;
+    allowedRadius: number;
+  } {
+    const centerLat =
+      parseFloat(process.env.ATTENDANCE_CENTER_LAT || '') || 30.65089; // 默认成都
+    const centerLon =
+      parseFloat(process.env.ATTENDANCE_CENTER_LON || '') || 104.07;
+    const allowedRadius =
+      parseFloat(process.env.ATTENDANCE_ALLOWED_RADIUS || '') || 100; // 默认100米
+
+    return { centerLat, centerLon, allowedRadius };
+  }
 
   /**
    * 计算两点之间的距离（米）- 使用 geolib 库的 Vincenty 公式，精度更高
@@ -58,7 +79,7 @@ export class AttendancesService {
     return getPreciseDistance(
       { latitude: lat1, longitude: lon1 },
       { latitude: lat2, longitude: lon2 },
-    ) as number;
+    );
   }
 
   /**
@@ -71,13 +92,8 @@ export class AttendancesService {
     latitude: number,
     longitude: number,
   ): { isValid: boolean; distance?: number; message?: string } {
-    // 从环境变量获取允许打卡的中心位置和范围
-    const centerLat =
-      parseFloat(process.env.ATTENDANCE_CENTER_LAT || '') || 39.9042; // 默认北京
-    const centerLon =
-      parseFloat(process.env.ATTENDANCE_CENTER_LON || '') || 116.4074;
-    const allowedRadius =
-      parseFloat(process.env.ATTENDANCE_ALLOWED_RADIUS || '') || 100; // 默认100米
+    // 从统一配置获取允许打卡的中心位置和范围
+    const { centerLat, centerLon, allowedRadius } = this.getAttendanceCenter();
 
     const point = { latitude, longitude };
     const center = { latitude: centerLat, longitude: centerLon };
@@ -92,7 +108,6 @@ export class AttendancesService {
       centerLat,
       centerLon,
     );
-
     if (!isValid) {
       return {
         isValid: false,
@@ -277,16 +292,21 @@ export class AttendancesService {
     let distance: number | undefined;
     let isInRange: boolean | undefined;
     if (latitude !== undefined && longitude !== undefined) {
-      const centerLat =
-        parseFloat(process.env.ATTENDANCE_CENTER_LAT || '') || 30.65089;
-      const centerLon =
-        parseFloat(process.env.ATTENDANCE_CENTER_LON || '') || 104.07;
-      const allowedRadius =
-        parseFloat(process.env.ATTENDANCE_ALLOWED_RADIUS || '') || 100;
+      const { centerLat, centerLon, allowedRadius } =
+        this.getAttendanceCenter();
+
+      this.logger.log(
+        `获取打卡状态 - 用户位置: (${latitude}, ${longitude}), 中心位置: (${centerLat}, ${centerLon})`,
+      );
+
       distance = Math.round(
         this.calculateDistance(latitude, longitude, centerLat, centerLon),
       );
       isInRange = distance <= allowedRadius;
+
+      this.logger.log(
+        `计算距离: ${distance} 米, 允许范围: ${allowedRadius} 米, 是否在范围内: ${isInRange}`,
+      );
     }
 
     if (unfinishedSession) {
