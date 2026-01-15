@@ -1,7 +1,7 @@
 import { storage } from "./storage.js";
 
-// export const BASE_URL = "https://typing.xiyuer.club/potato"; // 正式
-export const BASE_URL = "http://192.168.30.119:8888"; // 测试
+export const BASE_URL = "https://typing.xiyuer.club/potato"; // 正式
+// export const BASE_URL = "http://192.168.30.119:8888"; // 测试
 
 // 请求拦截器 - 添加token
 const requestInterceptor = (options) => {
@@ -365,6 +365,10 @@ export const taskApi = {
 
 // 打卡相关API
 export const attendanceApi = {
+  // 获取打卡中心
+  getClockCenter() {
+    return api.get("/attendances/center");
+  },
   // 获取当前打卡状态
   getClockStatus(latitude, longitude) {
     const params = {};

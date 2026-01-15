@@ -11,6 +11,7 @@ import { AttendancesService } from './attendances.service';
 import {
   DailyAttendanceRecord,
   AdminDailyAttendanceRecord,
+  ClockCenter,
 } from './attendances.service';
 import { ClockInDto } from './dto/clock-in.dto';
 import { ClockOutDto } from './dto/clock-out.dto';
@@ -139,5 +140,15 @@ export class AttendancesController {
     @Query() queryDto: QueryAttendanceByDateDto,
   ): Promise<AdminDailyAttendanceRecord[]> {
     return this.attendancesService.getAllAttendanceRecordsByDate(queryDto);
+  }
+
+  /**
+   * 获取打卡中心
+   * @returns 打卡中心信息
+   * @description 获取打卡中心信息
+   */
+  @Get('center')
+  getClockCenter(): Promise<ClockCenter> {
+    return Promise.resolve(this.attendancesService.getClockCenter());
   }
 }

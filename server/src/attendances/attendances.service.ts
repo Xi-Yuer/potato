@@ -31,6 +31,12 @@ export interface AdminDailyAttendanceRecord {
   totalDuration: number;
 }
 
+export interface ClockCenter {
+  centerLat: number;
+  centerLon: number;
+  allowedRadius: number;
+}
+
 @Injectable()
 export class AttendancesService {
   private readonly logger = new Logger(AttendancesService.name);
@@ -645,5 +651,14 @@ export class AttendancesService {
 
     // 转换为数组并按用户ID排序
     return Array.from(userRecords.values()).sort((a, b) => a.userId - b.userId);
+  }
+
+  /**
+   * 获取打卡中心位置配置
+   * @returns 打卡中心位置信息
+   * @description 返回打卡中心的位置和允许的打卡半径
+   */
+  getClockCenter(): ClockCenter {
+    return this.getAttendanceCenter();
   }
 }

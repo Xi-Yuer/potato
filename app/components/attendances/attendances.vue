@@ -181,13 +181,22 @@ const getCurrentLocation = () => {
   });
 };
 
-const handleLocation = () => {
-  uni.openLocation({
-    latitude: currentLocation.value.latitude,
-    longitude: currentLocation.value.longitude,
-    name: "打卡中心",
-    address: "凯德广场溜冰土豆小屋",
-  });
+const handleLocation = async () => {
+  try {
+    const centerLocation = await attendanceApi.getClockCenter();
+    uni.openLocation({
+      latitude: centerLocation.centerLat,
+      longitude: centerLocation.centerLon,
+      name: "打卡中心",
+      address: "凯德广场溜冰土豆小屋",
+    });
+  } catch (error) {
+    uni.showToast({
+      title: "获取打卡中心失败",
+      icon: "none",
+      duration: 2000,
+    });
+  }
 };
 
 // 检查当前打卡状态
